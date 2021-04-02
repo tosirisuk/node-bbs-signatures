@@ -20,55 +20,65 @@ import {
 } from "@mattrglobal/node-bbs-signatures";
 
 const main = async (): Promise<void> => {
-  //Generate a new key pair
+  // ISSUER
+  // Generate a new key pair
   const keyPair = await generateBls12381G2KeyPair();
 
   console.log("Key pair generated");
   console.log(`Public key base64 = ${Buffer.from(keyPair.publicKey).toString("base64")}`);
 
-  //Set of messages we wish to sign
-  const messages = [
-    Uint8Array.from(Buffer.from("message1", "utf-8")),
-    Uint8Array.from(Buffer.from("message2", "utf-8")),
+  // PROVER -> ISSUER
+  // Set of messages we wish to sign
+  const attributes = [
+    Uint8Array.from(Buffer.from("Rachata", "utf-8")),
+    Uint8Array.from(Buffer.from("Tosirisuk", "utf-8")),
+    Uint8Array.from(Buffer.from("29", "utf-8")),
+    Uint8Array.from(Buffer.from("Attribute 4", "utf-8")),
   ];
 
-  console.log("Signing a message set of " + messages);
+  console.log("Signing a attribute set of " + attributes);
 
-  //Create the signature
+  // ISSUER -> PROVER
+  // Create the signature
   const signature = await blsSign({
     keyPair,
-    messages: messages,
+    messages: attributes,
   });
 
   console.log(`Output signature base64 = ${Buffer.from(signature).toString("base64")}`);
 
-  //Verify the signature
+  // PROVER
+  // Verify the signature
   const isVerified = await blsVerify({
     publicKey: keyPair.publicKey,
-    messages: messages,
+    messages: attributes,
     signature,
   });
 
   const isVerifiedString = JSON.stringify(isVerified);
   console.log(`Signature verified ? ${isVerifiedString}`);
 
-  //Derive a proof from the signature revealing the first message
+  // VERIFIER sends a random "nonce" to PROVER
+  const nonce = Uint8Array.from(Buffer.from("nonce", "utf-8"));
+
+  // PROVER creates the proof -> VERIFIER
+  // Derive a proof from the signature revealing the first message
   const proof = await blsCreateProof({
     signature,
     publicKey: keyPair.publicKey,
-    messages,
-    nonce: Uint8Array.from(Buffer.from("nonce", "utf-8")),
-    revealed: [0],
+    messages: attributes,
+    nonce,
+    revealed: [0, 1],
   });
 
   console.log(`Output proof base64 = ${Buffer.from(proof).toString("base64")}`);
 
-  //Verify the created proof
+  //VERIFIER verifies the created proof
   const isProofVerified = await blsVerifyProof({
     proof,
     publicKey: keyPair.publicKey,
-    messages: messages.slice(0, 1),
-    nonce: Uint8Array.from(Buffer.from("nonce", "utf-8")),
+    messages: attributes.slice(0, 2),
+    nonce,
   });
 
   const isProofVerifiedString = JSON.stringify(isProofVerified);
